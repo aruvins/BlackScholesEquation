@@ -1,16 +1,22 @@
 from scipy.stats import norm
 import pandas as pd
 import numpy as np
+import yfinance as yf
 
-# To be finished later when dataset is found
-# call = df[df['Type'] == 'Call']
-# put = df[df['Type'] == 'Put']
+aapl= yf.Ticker("AAPL")
+# aapl.options # list of dates 
+DF_calls = aapl.option_chain().calls
+DF_puts = aapl.option_chain().puts
+
+print(DF_calls)
+print("\n")
+print(DF_puts)
 
 # Example data
 S = 1208                                # Current stock price
 K = 1210                                # Strike price
 T = 7/365                               # Time to expiration (1 week converted to years)
-r = 2.13/100                            # Risk-free interest rate (US Real Interest Rate)
+r = 2.05051/100                            # Risk-free interest rate (US Real Interest Rate)
 implied_volatility_value = 0.57         # Implied volatility (converted from percentage)
 historic_volatility_value = 0.47        # Historic volatility (converted from percentage)
 
