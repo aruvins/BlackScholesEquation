@@ -138,22 +138,28 @@ class BlackScholes:
         return call_price, put_price
 
     
-    def calculate_greeks(self):
+    def calculate_call_greeks(self):
         d1, d2 = self._calculate_d1_d2()
         greeks = {
-            'Call Delta': self._call_delta(d1),
-            'Call Gamma': self._call_gamma(d1),
-            'Call Theta': self._call_theta(d1, d2),
-            'Call Vega': self._call_vega(d1),
-            'Call Rho': self._call_rho(d2),
-            'Put Delta': self._put_delta(d1),
-            'Put Gamma': self._put_gamma(d1),
-            'Put Theta': self._put_theta(d1, d2),
-            'Put Vega': self._put_vega(d1),
-            'Put Rho': self._put_rho(d2),
+            'Call Delta': round(self._call_delta(d1), 2),
+            'Call Gamma': round(self._call_gamma(d1), 2),
+            'Call Theta': round(self._call_theta(d1, d2), 2),
+            'Call Vega': round(self._call_vega(d1), 2),
+            'Call Rho': round(self._call_rho(d2), 2)
         }
         return greeks
-    
+
+    def calculate_put_greeks(self):
+        d1, d2 = self._calculate_d1_d2()
+        greeks = {
+            'Put Delta': round(self._put_delta(d1), 2),
+            'Put Gamma': round(self._put_gamma(d1), 2),
+            'Put Theta': round(self._put_theta(d1, d2), 2),
+            'Put Vega': round(self._put_vega(d1), 2),
+            'Put Rho': round(self._put_rho(d2), 2)
+        }
+        return greeks
+
 def plot_heatmap(bs_model, spot_range, vol_range, strike):
     call_prices = np.zeros((len(vol_range), len(spot_range)))
     put_prices = np.zeros((len(vol_range), len(spot_range)))
@@ -184,6 +190,60 @@ def plot_heatmap(bs_model, spot_range, vol_range, strike):
     ax_put.set_ylabel('Volatility')
     
     return fig_call, fig_put
+
+def plot_call_greeks_correlation(bs_model, spot_range, vol_range):
+    greeks_list = []
+
+    for vol in vol_range:
+        for spot in spot_range:
+            bs_temp = BlackScholes(
+                time_to_maturity=bs_model.time_to_maturity,
+                strike=bs_model.strike,
+                current_price=spot,
+                volatility=vol,
+                interest_rate=bs_model.interest_rate
+            )
+            greeks = bs_temp.calculate_call_greeks()
+            greeks['Spot Price'] = spot
+            greeks['Volatility'] = vol
+            greeks_list.append(greeks)
+
+    greeks_df = pd.DataFrame(greeks_list)
+    correlation_matrix = greeks_df.corr()
+
+    # Plotting the correlation matrix
+    fig_corr, ax_corr = plt.subplots(figsize=(12, 8))
+    sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap="coolwarm", ax=ax_corr)
+    ax_corr.set_title('Correlation Between Greeks and Other Parameters')
+    
+    return fig_corr
+
+def plot_put_greeks_correlation(bs_model, spot_range, vol_range):
+    greeks_list = []
+
+    for vol in vol_range:
+        for spot in spot_range:
+            bs_temp = BlackScholes(
+                time_to_maturity=bs_model.time_to_maturity,
+                strike=bs_model.strike,
+                current_price=spot,
+                volatility=vol,
+                interest_rate=bs_model.interest_rate
+            )
+            greeks = bs_temp.calculate_put_greeks()
+            greeks['Spot Price'] = spot
+            greeks['Volatility'] = vol
+            greeks_list.append(greeks)
+
+    greeks_df = pd.DataFrame(greeks_list)
+    correlation_matrix = greeks_df.corr()
+
+    # Plotting the correlation matrix
+    fig_corr, ax_corr = plt.subplots(figsize=(12, 8))
+    sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap="coolwarm", ax=ax_corr)
+    ax_corr.set_title('Correlation Between Greeks and Other Parameters')
+    
+    return fig_corr
 
 # Page configuration
 st.set_page_config(
@@ -254,7 +314,6 @@ with st.sidebar:
     spot_max = st.number_input('Max Spot Price', min_value=0.01, value=current_price*1.2, step=0.01)
     vol_min = st.slider('Min Volatility for Heatmap', min_value=0.01, max_value=1.0, value=volatility*0.5, step=0.01)
     vol_max = st.slider('Max Volatility for Heatmap', min_value=0.01, max_value=1.0, value=volatility*1.5, step=0.01)
-    
     spot_range = np.linspace(spot_min, spot_max, 10)
     vol_range = np.linspace(vol_min, vol_max, 10)
 
@@ -302,6 +361,23 @@ with col2:
         </div>
     """, unsafe_allow_html=True)
 
+call_greeks = bs_model.calculate_call_greeks()
+put_greeks = bs_model.calculate_put_greeks()
+with col1:
+    st.subheader("Greeks for Call Options")
+    st.write(call_greeks)
+with col2:
+    st.subheader("Greeks for Put Options")
+    st.write(put_greeks)
+
+st.subheader("Explanation of Greeks")
+st.write("Delta: The first derivative of option price with respect to underlying price.")
+st.write("Gamma: The second derivative of option price with respect to underlying price.")
+st.write("Theta: The first derivative of option price with respect to time to expiration.")
+st.write("Vega: The first derivative of option price with respect to volatility σ(Sigma).")
+st.write("Rho: The first derivative of option price with respect to interest rate.")
+
+
 st.markdown("")
 st.title("Options Price - Interactive Heatmap")
 st.info("Explore how option prices fluctuate with varying 'Spot Prices and Volatility' levels using interactive heatmap parameters, all while maintaining a constant 'Strike Price'.")
@@ -318,3 +394,13 @@ with col2:
     st.subheader("Put Price Heatmap")
     _, heatmap_fig_put = plot_heatmap(bs_model, spot_range, vol_range, strike)
     st.pyplot(heatmap_fig_put)
+
+
+with col1:
+    st.subheader("Correlation Matrix of Call Greeks")
+    fig_corr = plot_call_greeks_correlation(bs_model, spot_range, vol_range)
+    st.pyplot(fig_corr)
+with col2:
+    st.subheader("Correlation Matrix of Put Greeks")
+    fig_corr = plot_put_greeks_correlation(bs_model, spot_range, vol_range)
+    st.pyplot(fig_corr)
